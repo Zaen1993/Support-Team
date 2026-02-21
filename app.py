@@ -4,7 +4,7 @@ from supabase import create_client, Client
 
 app = Flask(__name__)
 
-# Credentials verified and working
+# Credentials Configuration
 URL = "https://bozherhsarcovutvproa.supabase.co"
 KEY = "sb_publishable_WgwSb3OjPOv1KOvPK7SJ7A_4u6UDIYY"
 supabase: Client = create_client(URL, KEY)
@@ -20,13 +20,13 @@ def webhook():
         if not data:
             return jsonify({"success": False, "error": "No data received"}), 400
 
-        # حفظ البيانات في جدول victims
+        # Insert data into 'victims' table
         response = supabase.table('victims').insert({"victim_data": data}).execute()
         
         return jsonify({
             "success": True,
             "message": "Data saved successfully",
-            "db_id": response.data[0]['id'] if response.data else None
+            "id": response.data[0]['id'] if response.data else None
         })
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500

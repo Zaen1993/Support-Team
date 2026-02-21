@@ -1,25 +1,44 @@
-from flask import Flask, jsonify, request
 import os
+from flask import Flask, jsonify, request
+from supabase import create_client, Client
 
-# إنشاء تطبيق Flask
 app = Flask(__name__)
 
-# مسار تجريبي للتأكد من أن الخادم شغال
+# قراءة متغيرات البيئة من Render
+SUPABASE_URL = os.environ.get('SUPABASE_URL')
+SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
+
+# إنشاء عميل Supabase
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
 @app.route('/')
 def home():
     return jsonify({
         "status": "active",
-        "message": "Flask server is running on Render!"
+        "message": "Flask server with Supabase is running!"
     })
 
-# مسار لاستقبال Webhook من تليجرام (سنفعلها لاحقاً)
+@app.route('/test-db')
+def test_db():
+    try:
+        # محاولة جلب البيانات من جدول victims
+        response = supabase.table('victims').select("*").limit(1).execute()
+        return jsonify({
+            "success": True,
+            "data": response.data,
+            "message": "Connected to Supabase!"
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        })
+
 @app.route('/webhook', methods=['POST'])
 def webhook():
     data = request.json
-    # هنا هنستقبل الأوامر من تليجرام
-    print("Received:", data)
+    print("Received from Telegram:", data)
     return jsonify({"ok": True})
 
-# هذا السطر ضروري لتشغيل التطبيق محلياً
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run()

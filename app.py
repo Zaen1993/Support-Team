@@ -4,34 +4,28 @@ from supabase import create_client, Client
 
 app = Flask(__name__)
 
-# نستخدم الـ IP المباشر لخدمات Supabase (عبر Cloudflare) لتجاوز خطأ DNS
-# ملاحظة: إذا تغير الـ IP مستقبلاً سنعيد الرابط النصي، لكن حالياً هذا هو الحل للاتصال
-URL = "https://104.21.50.231" 
-KEY = "sb_publishable_bhDsYAE3AkjETs8UFGyK_w_p7VyMMsP"
-ORIGINAL_HOST = "ybhticzotyyvyuxkfkwv.supabase.co"
+# ضع الروابط الخاصة بك من صفحة Settings -> API في Supabase
+URL = "https://bozherhsarcovutvproa.supabase.co" # تأكد أنه الرابط الصحيح من لقطة شاشتك
+KEY = "ضع_هنا_مفتاح_anon_key_الخاص_بك"
 
 @app.route('/')
 def home():
-    return jsonify({"status": "active", "message": "DNS Bypass Active"})
+    return jsonify({"status": "active", "message": "Server is Online"})
 
 @app.route('/test-db')
 def test_db():
     try:
-        # نقوم بإنشاء العميل مع إضافة الـ Host الأصلي في الـ Headers ليعرف Supabase أن الطلب له
-        headers = {"Host": ORIGINAL_HOST}
-        client = create_client(URL, KEY, options={"headers": headers})
-        
+        client = create_client(URL, KEY)
+        # سيحاول جلب البيانات من جدول victims
         response = client.table('victims').select("*").limit(1).execute()
         return jsonify({
             "success": True, 
-            "data": response.data,
-            "message": "Connected via IP Direct"
+            "message": "Successfully connected to your REAL Supabase!"
         })
     except Exception as e:
         return jsonify({
             "success": False,
-            "error_detail": str(e),
-            "hint": "Check if your Supabase Project is PAUSED in their dashboard"
+            "error_detail": str(e)
         })
 
 if __name__ == '__main__':

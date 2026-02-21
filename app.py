@@ -4,15 +4,12 @@ from supabase import create_client, Client
 
 app = Flask(__name__)
 
-# جلب المتغيرات مع تنظيفها من أي فراغات مخفية
-SUPABASE_URL = os.environ.get('SUPABASE_URL', '').strip()
-SUPABASE_KEY = os.environ.get('SUPABASE_KEY', '').strip()
+# Direct Configuration to bypass DNS/Environment issues
+SUPABASE_URL = "https://ybhticzotyyvyuxkfkwv.supabase.co"
+SUPABASE_KEY = "sb_publishable_bhDsYAE3AkjETs8UFGyK_w_p7VyMMsP"
 
-# إنشاء عميل Supabase فقط إذا كانت المتغيرات موجودة
-if SUPABASE_URL and SUPABASE_KEY:
-    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-else:
-    print("Error: SUPABASE_URL or SUPABASE_KEY is missing!")
+# Initialize Supabase Client
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 @app.route('/')
 def home():
@@ -24,7 +21,7 @@ def home():
 @app.route('/test-db')
 def test_db():
     try:
-        # فحص الاتصال بالجدول
+        # Fetching data from 'victims' table
         response = supabase.table('victims').select("*").limit(1).execute()
         return jsonify({
             "success": True,
@@ -40,10 +37,10 @@ def test_db():
 @app.route('/webhook', methods=['POST'])
 def webhook():
     data = request.json
-    print("Received from Telegram:", data)
+    print("Received:", data)
     return jsonify({"ok": True})
 
 if __name__ == '__main__':
-    # الحصول على المنفذ من Render أو استخدام 5000 كافتراضي
+    # Bind to PORT provided by Render
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)

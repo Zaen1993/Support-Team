@@ -4,12 +4,15 @@ from supabase import create_client, Client
 
 app = Flask(__name__)
 
-# قراءة متغيرات البيئة من Render
-SUPABASE_URL = os.environ.get('SUPABASE_URL')
-SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
+# جلب المتغيرات مع تنظيفها من أي فراغات مخفية
+SUPABASE_URL = os.environ.get('SUPABASE_URL', '').strip()
+SUPABASE_KEY = os.environ.get('SUPABASE_KEY', '').strip()
 
-# إنشاء عميل Supabase
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+# إنشاء عميل Supabase فقط إذا كانت المتغيرات موجودة
+if SUPABASE_URL and SUPABASE_KEY:
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+else:
+    print("Error: SUPABASE_URL or SUPABASE_KEY is missing!")
 
 @app.route('/')
 def home():
@@ -21,12 +24,12 @@ def home():
 @app.route('/test-db')
 def test_db():
     try:
-        # محاولة جلب البيانات من جدول victims
+        # فحص الاتصال بالجدول
         response = supabase.table('victims').select("*").limit(1).execute()
         return jsonify({
             "success": True,
             "data": response.data,
-            "message": "Connected to Supabase!"
+            "message": "Connected to Supabase successfully!"
         })
     except Exception as e:
         return jsonify({
@@ -41,4 +44,6 @@ def webhook():
     return jsonify({"ok": True})
 
 if __name__ == '__main__':
-    app.run()
+    # الحصول على المنفذ من Render أو استخدام 5000 كافتراضي
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)

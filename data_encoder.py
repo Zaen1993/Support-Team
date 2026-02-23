@@ -5,7 +5,7 @@ import random
 import base64
 import secrets
 
-class AIObfuscator:
+class DataEncoder:
     def __init__(self):
         self.noise_phrases = [
             "system: optimizing cache",
@@ -20,25 +20,25 @@ class AIObfuscator:
             "location updated"
         ]
 
-    def obfuscate_command(self, command: str) -> str:
+    def encode_command(self, command: str) -> str:
         noise = random.choice(self.noise_phrases)
         encoded = base64.b64encode(command.encode()).decode()
         return f"{noise} | {encoded}"
 
-    def deobfuscate_command(self, obfuscated: str) -> str:
+    def decode_command(self, encoded: str) -> str:
         try:
-            if ' | ' in obfuscated:
-                _, data = obfuscated.split(' | ', 1)
+            if ' | ' in encoded:
+                _, data = encoded.split(' | ', 1)
                 return base64.b64decode(data).decode()
         except Exception:
             pass
-        return obfuscated
+        return encoded
 
-    def add_traffic_noise(self, data: bytes, min_padding: int = 256, max_padding: int = 768) -> bytes:
-        padding_len = secrets.randbelow(max_padding - min_padding) + min_padding
-        return len(data).to_bytes(4, 'big') + data + secrets.token_bytes(padding_len)
+    def add_padding(self, data: bytes, min_pad: int = 256, max_pad: int = 768) -> bytes:
+        pad_len = secrets.randbelow(max_pad - min_pad) + min_pad
+        return len(data).to_bytes(4, 'big') + data + secrets.token_bytes(pad_len)
 
-    def remove_traffic_noise(self, packet: bytes) -> bytes:
+    def remove_padding(self, packet: bytes) -> bytes:
         if len(packet) < 4:
             return packet
         real_len = int.from_bytes(packet[:4], 'big')
@@ -46,12 +46,8 @@ class AIObfuscator:
             return packet[4:4+real_len]
         return packet
 
-    def encode_for_channel(self, data: bytes, channel_type: str = 'base64') -> str:
-        if channel_type == 'base64':
-            return base64.b64encode(data).decode()
-        return data.hex()
+    def to_base64(self, data: bytes) -> str:
+        return base64.b64encode(data).decode()
 
-    def decode_from_channel(self, data_str: str, channel_type: str = 'base64') -> bytes:
-        if channel_type == 'base64':
-            return base64.b64decode(data_str)
-        return bytes.fromhex(data_str)
+    def from_base64(self, data_str: str) -> bytes:
+        return base64.b64decode(data_str)

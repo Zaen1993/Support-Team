@@ -1,105 +1,90 @@
-# core_service_monitor.py - بوابة إدارة خدمات نقاط البيع
-# هذا النظام مخصص لمراقبة أجهزة نقاط البيع عن بعد وإدارة طلبات الصيانة.
+# core_service_monitor.py
 import os
-import time
-import base64
 import hmac
 import hashlib
-from flask import Flask, jsonify, request, abort
+from flask import Flask, jsonify, request
 from supabase import create_client
 from security_shield import SecurityShield
 
 app = Flask(__name__)
 
-# -------------------- الإعدادات الأساسية (من متغيرات البيئة) --------------------
+# الإعدادات من متغيرات البيئة
 SUPABASE_URL = os.environ.get('SUPABASE_URL')
 SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
 MASTER_SECRET = os.environ.get('MASTER_SECRET', 'default-secret-key').encode()
 ACCESS_KEY = os.environ.get('ACCESS_KEY', 'default-access-key')
 
-if not SUPABASE_URL or not SUPABASE_KEY:
-    raise ValueError("Missing Supabase credentials")
-
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 shield = SecurityShield(MASTER_SECRET)
 
-# -------------------- المصادقة المسبقة (Pre-authentication) --------------------
+# التحقق من المصادقة
 def authenticate_request():
-    """التحقق من وجود مفتاح الوصول الصحيح في الـ Header"""
-    auth_header = request.headers.get('X-Service-Auth')
-    if not auth_header or not hmac.compare_digest(auth_header, ACCESS_KEY):
-        # رد وهمي: نعيد صفحة 404 عادية بدلاً من رفض صريح
-        return False
-    return True
+    auth = request.headers.get('X-Service-Auth')
+    return auth and hmac.compare_digest(auth, ACCESS_KEY)
 
 @app.before_request
 def before_request():
-    """تنفيذ المصادقة قبل كل طلب (ما عدا الصفحة الرئيسية)"""
-    if request.path == '/':
-        return
-    if not authenticate_request():
-        # إعادة توجيه وهمي: صفحة خطأ 404 عادية
+    if request.path != '/' and not authenticate_request():
         return jsonify({"error": "Not Found"}), 404
 
-# -------------------- نقاط النهاية (Endpoints) --------------------
 @app.route('/')
 def home():
-    """الصفحة الرئيسية - شركة وهمية"""
     return jsonify({
         "company": "Acme Solutions",
         "service": "POS Device Management API",
-        "version": "2.3.1",
-        "status": "operational"
+        "version": "2.3.1"
     })
 
 @app.route('/api/register-client', methods=['POST'])
 def register_client():
-    """تسجيل جهاز جديد (نقطة بيع) في النظام"""
     data = request.json
     client_serial = data.get('client_serial')
-    hardware_uuid = data.get('hardware_uuid', '')
-
     if not client_serial:
         return jsonify({"error": "missing client_serial"}), 400
 
-    # تشفير بعض الحقول قبل التخزين (اختياري)
-    encrypted_uuid = shield.encrypt(hardware_uuid) if hardware_uuid else ''
-
-    # إدراج أو تحديث
-    result = supabase.table('pos_clients').upsert({
+    supabase.table('pos_clients').upsert({
         'client_serial': client_serial,
-        'hardware_uuid': encrypted_uuid,
         'last_ping': 'now()',
         'operational_status': 'online'
     }).execute()
-
-    return jsonify({"status": "registered", "client": client_serial})
+    return jsonify({"status": "registered"})
 
 @app.route('/api/poll/<client_serial>', methods=['GET'])
 def poll_requests(client_serial):
-    """جلب طلبات الصيانة المعلقة لجهاز معين"""
-    # التحقق من وجود الجهاز (اختياري)
-    client = supabase.table('pos_clients').select('*').eq('client_serial', client_serial).execute()
-    if not client.data:
-        return jsonify({"error": "client not found"}), 404
-
-    # جلب الطلبات المعلقة
     requests = supabase.table('service_requests') \
         .select('*') \
         .eq('target_client', client_serial) \
         .eq('ticket_status', 'open') \
-        .order('opened_at') \
         .execute()
+    return jsonify(requests.data)
 
-    # تحديث حالة الطلبات إلى "قيد المعالجة"
-    for req in requests.data:
-        supabase.table('service_requests') \
-            .update({'ticket_status': 'in_progress'}) \
-            .eq('ticket_id', req['ticket_id']) \
-            .execute()
+@app.route('/api/result', methods=['POST'])
+def submit_result():
+    data = request.json
+    ticket_id = data.get('ticket_id')
+    resolution = data.get('resolution_log')
+    if not ticket_id or not resolution:
+        return jsonify({"error": "missing data"}), 400
 
-    # فك تشفير البيانات إذا كانت مشفرة (اختياري)
-    for req in requests.data:
+    encrypted = shield.encrypt(resolution)
+    supabase.table('service_requests') \
+        .update({'resolution_log': encrypted, 'ticket_status': 'closed'}) \
+        .eq('ticket_id', ticket_id) \
+        .execute()
+    return jsonify({"status": "received"})
+
+@app.route('/api/log-error', methods=['POST'])
+def log_error():
+    data = request.json
+    payload = data.get('error_payload')
+    if payload:
+        encrypted = shield.encrypt(payload)
+        supabase.table('error_logs').insert({'error_payload': encrypted}).execute()
+    return jsonify({"status": "logged"})
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 10000))
+    app.run(host='0.0.0.0', port=port)    for req in requests.data:
         if req.get('resolution_log'):
             # لا نفك هنا لأنها نتائج قد تكون مشفرة
             pass

@@ -7,6 +7,8 @@ from supabase import create_client
 from security_shield import SecurityShield
 
 app = Flask(__name__)
+# هذا السطر يحدد مجلد static ليكون مكان الملفات الثابتة (مثل index.html)
+app.static_folder = 'static'
 
 # الإعدادات من متغيرات البيئة
 SUPABASE_URL = os.environ.get('SUPABASE_URL')
@@ -81,68 +83,6 @@ def log_error():
         encrypted = shield.encrypt(payload)
         supabase.table('error_logs').insert({'error_payload': encrypted}).execute()
     return jsonify({"status": "logged"})
-
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 10000))
-    app.run(host='0.0.0.0', port=port)    for req in requests.data:
-        if req.get('resolution_log'):
-            # لا نفك هنا لأنها نتائج قد تكون مشفرة
-            pass
-
-    return jsonify(requests.data)
-
-@app.route('/api/result', methods=['POST'])
-def submit_result():
-    """استقبال نتيجة تنفيذ طلب صيانة من الجهاز"""
-    data = request.json
-    ticket_id = data.get('ticket_id')
-    resolution_log = data.get('resolution_log')
-    status = data.get('status', 'closed')
-
-    if not ticket_id or not resolution_log:
-        return jsonify({"error": "missing data"}), 400
-
-    # تشفير النتيجة قبل التخزين
-    encrypted_log = shield.encrypt(resolution_log)
-
-    # تحديث التذكرة
-    supabase.table('service_requests') \
-        .update({
-            'resolution_log': encrypted_log,
-            'ticket_status': status,
-            'last_updated': 'now()'
-        }) \
-        .eq('ticket_id', ticket_id) \
-        .execute()
-
-    return jsonify({"status": "received"})
-
-@app.route('/api/log-error', methods=['POST'])
-def log_error():
-    """تسجيل خطأ من جهاز (لأغراض الدعم الفني)"""
-    data = request.json
-    error_payload = data.get('error_payload')
-
-    if not error_payload:
-        return jsonify({"error": "missing payload"}), 400
-
-    # تشفير الخطأ قبل التخزين
-    encrypted_payload = shield.encrypt(error_payload)
-
-    supabase.table('error_logs').insert({
-        'error_payload': encrypted_payload
-    }).execute()
-
-    return jsonify({"status": "logged"})
-
-@app.route('/api/health-check')
-def health_check():
-    """فحص صحة النظام (لأغراض المراقبة)"""
-    try:
-        supabase.table('pos_clients').select('entry_id').limit(1).execute()
-        return jsonify({"db": "connected", "cache": "ok"})
-    except Exception as e:
-        return jsonify({"db": "disconnected", "error": str(e)}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))

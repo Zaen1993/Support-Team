@@ -20,7 +20,7 @@ try:
 except ImportError:
     OQS_AVAILABLE = False
 
-class CryptoManager:
+class EncryptionManager:
     def __init__(self, master_secret: bytes, salt: bytes, use_pqc: bool = False):
         self.master_secret = master_secret
         self.salt = salt

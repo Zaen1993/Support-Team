@@ -1,6 +1,6 @@
-pyTelegramBotAPI==4.7.0
 flask==2.3.2
-flask_cors==4.0.0
-gunicorn>=22.0.0
-setuptools>=65.0.0
-supabase>=1.0.0
+flask-cors==4.0.0
+supabase==1.0.0
+gunicorn==21.2.0
+cryptography==41.0.7
+python-dotenv==1.0.0
